@@ -1,0 +1,442 @@
+''''''
+'''Python供应链经营数据分析项目实训方案'''
+#共用库
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+
+'''导入数据，并将年份月份进行提取出来'''
+df = pd.read_excel('D:/经营数据分析/380平台－数据源.xlsx',sheet_name='清洗数据')#通过sheet_name来指定读取的表单
+df['年份'] = df['日期'].dt.year   #从日期中提取年份新生成一列
+df['月份'] = df['日期'].dt.month  #从日期中提取月份新生成一列
+
+
+
+
+"""任务4.1:380平台每月盈利情况"""
+#---------------------------------------------------------------------------------------------------
+
+#任务4.1主函数
+def main4_1():
+    #1、获取380平台的每月盈利
+    df_month = df.groupby(['年份','月份']).sum()  #根据年月分组并求和
+    Gro_porfit_2014 = np.array(df_month['经营利润1'][2014])   #将2014年经营利润存为数组，方便后面使用
+    Gro_porfit_2015 = np.array(df_month['经营利润1'][2015])   #将2015年经营利润存为数组，方便后面使用
+
+    #2、对380平台每月盈利情况作图
+    Huitu4_1(Gro_porfit_2014,Gro_porfit_2015)
+
+#定义绘图函数（绘制14、15年利润折线图和同比环比图）
+def Huitu4_1(df_2014,df_2015):  #传入14、15年的经营数组
+
+    #2014，2015每月盈利折线图
+    month = np.arange(1,13)    #从1到12按照步长为1生成一个月份数组数组
+    plt.plot(month, df_2014, 'go-', label='2014Year')  #将2014年每月盈利情况生成折线图
+    plt.plot(month, df_2015, 'ro-', label='2015Year')  #将2015年每月盈利情况生成折线图
+    plt.xlabel('月份(1-12月)', fontproperties='SimHei', fontsize=15, color='green')     #创建横轴的标签，字体为黑体，字体大小为15，字体颜色为绿色
+    plt.ylabel('盈利(1e7元)', fontproperties='SimHei', fontsize=15)    #创建纵轴标签
+    plt.title(r'380平台每月盈利情况',fontproperties='SimHei', fontsize=25)     #创建标题
+    plt.axis([1, 12, -2*1e7, 5*1e7])               #X轴尺度为为1到112，Y轴坐标尺度为-2*1e7到5*1e7
+    plt.legend()         #显示图例
+    plt.grid(True)       #显示网格线
+    plt.show()
+
+    #2014、1015两年盈利同比环比数据
+    date = list(pd.date_range('1/1/2014', periods=24,freq='M'))    #生成日期
+    sale = np.append(df_2014, df_2015)  #将两年的盈利数据按照时间顺序存入一个数组
+    data = pd.DataFrame({'rng':date, 'mony' : sale})    #创建一个时间盈利的DataFrame
+    #计算环比
+    data['环比'] = data.mony.pct_change()
+    data.fillna(0, inplace=True)
+    #计算同比
+    data['tongbi_shu'] = data.mony.diff(12)
+    data.fillna(0, inplace=True)
+    data['同比'] = data['tongbi_shu']/(data['mony']-data['tongbi_shu'])
+
+    #绘制环比图
+    print(data)
+    plt.plot(data['rng'], data['环比'], 'ro-',)  #将环比数据与对应日期生成折线图
+    plt.xlabel('日期', fontproperties='SimHei', fontsize=15)     #创建横轴的标签，字体为黑体，字体大小为15
+    plt.ylabel('环比', fontproperties='SimHei', fontsize=15)    #创建纵轴标签
+    plt.title(r'380平台盈利环比图',fontproperties='SimHei', fontsize=25)     #创建标题
+    plt.grid(True)       #显示网格线
+    plt.show()
+
+    #绘制同比图
+    month = np.arange(1,13)
+    plt.plot(month, data.loc[12:, '同比'], 'bo-')  #将同比数据与对应日期生成折线图
+    plt.xlabel('日期', fontproperties='SimHei', fontsize=15)     #创建横轴的标签，字体为黑体，字体大小为15
+    plt.ylabel('同比', fontproperties='SimHei', fontsize=15)    #创建纵轴标签
+    plt.title(r'380平台盈利同比图',fontproperties='SimHei', fontsize=25)     #创建标题
+    plt.grid(True)       #显示网格线
+    plt.show()
+
+#------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+'''任务4.2:统计分析380平台各行业的盈利分布情况'''
+#---------------------------------------------------------------------------------------------------
+
+#任务4.2用到的库
+import math
+
+#任务4.2主函数
+def main4_2():
+    #1.获取380平台各行业盈利数据
+    df_Trades = df.groupby(['年份','行业'])['经营利润1'].sum()         #根据年份行业分组并求经营利润
+    Trade_porfit_2014 = df_Trades[2014]     #将2014年各行业的经营利润数据
+    Trade_porfit_2015 = df_Trades[2015]     #将2015年各行业经营利润存数据
+    #2、处理数据并绘制多层饼图
+    DCbingtu(Trade_porfit_2014,2014)      #绘制2014年各个行业利润的多层饼图
+    DCbingtu(Trade_porfit_2015,2015)      #绘制2014年各个行业利润的多层饼图
+
+#定义一个处理数据并绘制多层饼图的函数
+def DCbingtu(df,year):  #传入分组求和后的DataFrame和年份
+    #数据处理
+    Porfit_Zheng = df[df.values > 0].sum()    #计算所有正收益行业的利润和
+    Porfit_Fu = df[df.values < 0].sum()       #计算所有负收益行业的利润和
+    Bili = round(math.sqrt((-Porfit_Fu)/Porfit_Zheng), 2)    #计算负利润占正利润的比例，并开根号保留两位小数，作为后期绘制多层饼图半径参数
+    df_Trades_Zheng = df[df.values > 0]       #获取正收益行业的DataFrame
+    df_Trades_Fu = df[df.values < 0]        #获取负收益行业的DataFrame
+    vals1 = list(df_Trades_Zheng.values)
+    vals2 = list(-df_Trades_Fu.values)
+
+    #绘制多层饼图
+    matplotlib.rcParams['font.family'] = 'STSong'  # 设置全部中文格式为中文宋体
+    fig, ax = plt.subplots()
+    #因为计算的半径是以正收益行业饼图半径为 1 作为参照，故正收益饼图半径为与负收益半径比例满足 1 : Bili
+    ax.pie(vals1,labels=list(df_Trades_Zheng.index), radius=1,autopct='%1.1f%%',pctdistance=0.9)
+    ax.pie(vals2,labels=list(df_Trades_Fu.index),radius=Bili,autopct='%1.1f%%',pctdistance=0.75)
+    titles = str(year) + "年380平台各行业的盈利多层饼图"
+    ax.set(aspect="equal", title=titles)
+    plt.legend(bbox_to_anchor=(1, 1), loc='best', borderaxespad=0.)
+    plt.show()
+
+#-------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+'''任务 4.3 统计分析 380 平台各行业每月的盈利情况，并预测截止月的下个月的盈利情况，在报告中给出分析和实现过程。'''
+#---------------------------------------------------------------------------------------------------
+
+#任务4.3时间序列分析用到的一些库
+import seaborn as sns
+from matplotlib.pylab import style
+from statsmodels.tsa.arima_model import ARIMA
+from statsmodels.graphics.tsaplots import plot_acf
+from statsmodels.graphics.tsaplots import plot_pacf
+
+#任务4.3主函数
+def main4_3():
+    #1、获取两年各行业每月的盈利的DataFrame，记为df_monthTrades
+    df_monthTrades = df.groupby(['行业','年份','月份'])['经营利润1'].sum()
+    #2、绘制行业月盈利折线图
+    Every_porfit(df_monthTrades)
+    #3、预测截止月数据（这里以食品为例）
+    Predict(df,'食品')
+
+#定义一个绘制各行业月盈利函数
+def Every_porfit(df):  #传入分组求和后的DataFrame
+    month = np.arange(1,25)                   #生成月份数组
+    TRade_data = [[month,'食品'],[np.arange(4,25),'家电'],[month,'酒饮'],
+                  [month,'日化'],[month,'母婴'],[np.arange(19,25),'O2O金融项目']]   #将月份和行业数据存入列表，用于遍历绘图
+    for i in TRade_data:
+        #绘制折线图
+        plt.rcParams['font.family']='STSong'      #设置全部中文格式为中文宋体
+        plt.rcParams['font.size']=20              #设置字体大小为20号
+        plt.plot(i[0], df[i[1]].values, '-', label=i[1])
+        plt.xlabel('月份(2014-2015)', fontproperties='SimHei', fontsize=15)     #创建横轴的标签，字体为黑体，字体大小为15
+        plt.ylabel('盈利(1e7元)', fontproperties='SimHei', fontsize=15)    #创建纵轴标签
+        plt.title(r'380平台各行业每月的盈利',fontproperties='SimHei', fontsize=25)     #创建标题
+        plt.xlim((1, 24))
+        plt.xticks(np.arange(1,24,2))
+        plt.legend()         #显示图例
+        plt.grid(True)       #显示网格线
+        plt.show()
+
+#定义一个时间序列分析函数
+def Predict(df,brand):  #传入分组求和后的DataFrame和要预测的品牌 brand为str类型
+    style.use('ggplot')
+    plt.rcParams['font.sans-serif'] = ['SimHei']
+    plt.rcParams['axes.unicode_minus'] = False
+    #因为有的月份不全，导致对应参数不一样，故用判断语句来划分预测代码
+    #这里已经根据各行业月利润的差分稳定性和 ACF、PACF图得出对应的p、d、q参数
+    #由于O2O金融项目数据不足，直接主观预测
+    if brand in ['食品','酒饮','日化','母婴']:
+        rng = pd.date_range('2014/01/01', periods = 24, freq = 'M')   #生成日期
+        porfit = list(df[brand].values)    #传入各月盈利数据
+        data = pd.DataFrame(porfit, index=rng, columns=['盈利'])   #生成一个以时间为索引、盈利为值的DataFrame
+        data_train = data['2014-01-31' : '2015-08-31']     #选取前20个月的盈利数据作为训练数据
+        data_train.plot(figsize = (12,8))         #画出折线图
+        plt.title('Porfit')
+        sns.despine()
+        #plt.show()
+
+        #进行差分
+        data_diff1 = data_train.diff(1)     #一阶差分
+        data_diff1 = data_diff1.dropna()
+        plt.figure()
+        plt.plot(data_diff1)
+        plt.title('一阶差分')
+        #plt.show()
+        data_diff2 = data_diff1.diff(1)    #二阶差分
+        data_diff2 = data_diff2.dropna()
+        plt.figure()
+        plt.plot(data_diff2)
+        plt.title('二阶差分')
+        #plt.show()
+
+        #绘制ACF与PACF图
+        acf = plot_acf(data_diff2)
+        plt.title('ACF')
+        #acf.show()
+        pacf = plot_pacf(data_diff2, lags=8)
+        plt.title('PACF')
+        #pacf.show()
+        if brand in ['食品','酒饮','日化']:
+            #建立模型
+            model = ARIMA(data_train, order=(1,2,1), freq='M')  #传入训练数据，参数，并以月为单位
+            result = model.fit()    #训练模型
+
+            #进行预测
+            pred = result.predict('20150731', '20160131', dynamic=True, typ='levels')  #预测初始日期必须为训练中存在的日期
+            return pred
+            #做出预测与真实值的比较图
+            plt.figure(figsize=(6,6))
+            plt.plot(pred)
+            plt.plot(data_train)
+            #plt.show()
+        else:
+            model = ARIMA(data_train, order=(4, 2, 4), freq='M')  # 传入训练数据，参数，并以月为单位
+            result = model.fit()  # 训练模型
+            # 进行预测
+            pred = result.predict('20150731', '20160131', dynamic=True, typ='levels')  # 预测初始日期必须为训练中存在的日期
+            return pred
+    elif brand in ['家电']:
+        rng = pd.date_range('2014/04/01', periods=21, freq='M')  # 生成日期
+        porfit = list(df[brand].values)  # 传入各月盈利数据
+        data = pd.DataFrame(porfit, index=rng, columns=['盈利'])  # 生成一个以时间为索引、盈利为值的DataFrame
+        data_train = data['2014-04-30': '2015-7-31']  # 选取前16个月的盈利数据作为训练数据
+
+        # 通过ACF与PACF图确定了p=2，q=6
+        # 建立模型
+        model = ARIMA(data_train, order=(2, 2, 6), freq='M')  # 传入训练数据，参数，并以月为单位
+        result = model.fit()  # 训练模型
+
+        # 进行预测
+        pred = result.predict('20150630', '20160131', dynamic=True, typ='levels')  # 预测初始日期必须为训练中存在的日期
+        return pred
+    else:
+        return 4.564007e+07
+
+#---------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+'''任务 5.1 统计分析母婴行业各品牌销售分布情况'''
+#---------------------------------------------------------------------------------------------------
+
+#任务5.1主函数
+def main5_1():
+    #1、获取2014、2015年的品牌与利润数据
+    df_Trades = df.groupby(['行业','年份','项目简称'])['经营利润1'].sum()     #按照年份、品牌进行分组，并计算利润
+    df_Brand_2014 = df_Trades['母婴'][2014]               #提取2014年母婴行业各品牌的盈利数据
+    df_Brand_2015 = df_Trades['母婴'][2015]               #提取2015年母婴行业各品牌的盈利数据
+    #2、去除盈利为零和负盈利的数据
+    df_use_2014 = pd.DataFrame(df_Brand_2014[df_Brand_2014 > 0])
+    df_use_2015 = pd.DataFrame(df_Brand_2015[df_Brand_2015 > 0])
+    #3、运行函数，绘制品牌盈利饼图
+    Huitu5_1(df_use_2014,2014)
+    Huitu5_1(df_use_2015,2015)
+
+#定义一个绘制饼图的函数
+def Huitu5_1(df,years):
+        year = years
+        matplotlib.rcParams['font.sans-serif'] = ['SimHei']
+        plt.figure(figsize=(20,20))
+        patches,l_text,p_text = plt.pie(list(df['经营利润1']),
+                labels = list(df.index),
+                shadow = True,
+                autopct = "%.1f%%"
+        )
+        for t in p_text:
+                t.set_size(30)
+        for t in l_text:
+                t.set_size(30)
+        title = str(year) +"品牌利润饼图"
+        plt.title(title, size=40)
+        plt.show()
+
+#---------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+'''任务 5.2 统计分析母婴行业各品牌在各地区的盈利分布情况'''
+#---------------------------------------------------------------------------------------------------
+
+#任务5.2主函数
+def main5_2():
+    df_Moboby = df[df.行业 == '母婴']     #获取所有母婴数据
+    df_Data = df_Moboby.groupby(['项目简称','省区平台'])['经营利润1'].sum()     #按项目简称、省区平台进行分组，并计算利润
+    Brands = list(df_Moboby.groupby('项目简称').sum().index)     #获取所有的品牌名称,存为列表
+    for j in Brands:    #依次遍历所有品牌
+        df_Region = df_Data[j]
+        Region = list(df_Region.index)   #获取单个品牌的所有省区平台
+        Profifts = list(df_Region.values)         #获取单个品牌的所有省区平台对应的利润
+        #绘制直方图
+        plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+        plt.rcParams['axes.unicode_minus'] = False    # 用来正常显示负号
+        plt.figure(figsize=(10,10))
+        plt.bar(Region, Profifts, label="利润", width=0.9)
+        plt.legend(loc='best')
+        plt.xlabel('省区平台')
+        plt.ylabel('经营利润')
+        titles = str(j) + "各省区平台盈利直方图"
+        plt.title(titles)
+        plt.show()
+
+#---------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+'''任务 5.3 统计分析母婴行业各品牌库存和周转情况，总结规律，给出各品牌的标签，格式如下表所示。'''
+#---------------------------------------------------------------------------------------------------
+
+#任务5.3用到的库
+from sklearn.cluster import KMeans
+import matplotlib
+import xlwt
+
+#任务5.3主函数
+def main5_3():
+    df_Moboby = df[df.行业 == '母婴'].groupby(['年份','项目简称'])     #获取所有母婴数据按照年份和品牌进行分类
+    #1、计算得到2014、2015年存货周转率（次）
+    df_INtimes_2014 = (df_Moboby['销售成本'].sum()[2014])/(df_Moboby['期末存货余额'].sum()[2014])
+    df_INtimes_2015 = (df_Moboby['销售成本'].sum()[2015])/(df_Moboby['期末存货余额'].sum()[2015])
+    #2、处理缺失值，将空值转换率记为0
+    df_INtimes_2014 = df_INtimes_2014.fillna(0)
+    df_INtimes_2015 = df_INtimes_2015.fillna(0)
+    #3、聚类分析，获取分类指标
+      #造两个新的DataFrame,用于聚类分析
+    Data_2014 = pd.concat([df_INtimes_2014,pd.Series(np.ones((54,)), index=df_INtimes_2014.index)], axis=1)
+    Data_2015 = pd.concat([df_INtimes_2015,pd.Series(np.ones((64,)), index=df_INtimes_2015.index)], axis=1)
+    # 输出聚类结果
+    # Julei(Data_2014, 2014)
+    # Julei(Data_2015, 2015)
+
+    # 输出品牌的标签结果
+    savepath_INtimes_2014 = '2014年母婴行业品牌周转情况.xls'  # 设置保存路径，此处路径为保存到调试页面
+    savepath_INtimes_2015 = '2015年母婴行业品牌周转情况.xls'  # 设置保存路径，此处路径为保存到调试页面
+    saveDate(biaoqian(df_INtimes_2014), savepath_INtimes_2014)  # 运行
+    saveDate(biaoqian(df_INtimes_2015), savepath_INtimes_2015)
+
+#定义一个聚类分析函数，确定标签的指标
+def Julei(Data,num):
+    #  聚类
+    mod = KMeans(n_clusters=4, random_state=9)
+    y_pre = mod.fit_predict(Data)
+    plt.figure(figsize=(20, 8), dpi=80)
+    matplotlib.rcParams['font.family'] = 'STSong'  # 设置全部中文格式为中文宋体
+    matplotlib.rcParams['font.size'] = 20  # 设置字体大小为20号
+    plt.xlabel('周转率')
+    title = str(num) + '年聚类结果'
+    plt.title(title)
+    plt.scatter(Data.iloc[:, 0], Data.iloc[:, 1], c=y_pre)
+    plt.axis([0, 1.5, 0.8, 1.2])
+    plt.show()
+
+#定义一个处理数据与添加标签函数
+def biaoqian(df):   #定义一个排序与添加标签函数 返回处理好的DataFrame
+    def zhibiao(Crate):  # 判断指标函数
+        if ((Crate >= 0.35) and (Crate <= 1)):
+            return '正常'
+        elif ((Crate >= 1) and (Crate <= 1.5)):
+            return '热销'
+        else:
+            return '滞销'
+    df_mo = pd.DataFrame(df.values, index=df.index)
+    df_mo['标签'] = df_mo[0].apply(lambda x: zhibiao(x))  # 用apply函数添加标签列
+    dict_sort_biaoqian = {'热销': 2, '正常': 1, '滞销': 0}
+    df_mo['序列'] = df_mo['标签'].map(lambda x: dict_sort_biaoqian[x.lower()])  # 用于排序
+    #生成一个新的DataFrame
+    dir = {'品牌' : df_mo.index, '标签' : df_mo['标签'], '排序列' : df_mo['序列']}
+    df_new = pd.DataFrame(dir)
+    new = df_new.sort_values(by="排序列", ascending=False)       #对表按照标签进行降序排序
+    new.index = range(len(new))  # 更新索引
+    return new                  #返回处理后的表
+
+#定义一个函数写入excel表格
+def saveDate(df,savepath):  #定义一个函数写入excel表格
+    print("开始写入数据......")
+    workbook = xlwt.Workbook(encoding='utf-8', style_compression=0)          #创建workbook对象
+    worksheet = workbook.add_sheet('存货周转率', cell_overwrite_ok=True)     #创建工作表
+    col = ("序号","品牌","标签")         #创建列名
+    for i in range(0,3):                             #将工作表看作是二维数据  位置从0:0开始
+        worksheet.write(0,i,col[i])                  #导入数据，第一个参数表示”行“，第二个参数表示”列“，第三个参数表示导入内容
+    count = list(range(len(df)))
+    Name = list(df['品牌'])
+    Biaoqian = list(df['标签'])
+    for i in range(len(Name)):
+            print("正在写入第%d条数据"%(i+1))
+            worksheet.write(i+1,0,count[i]+1)
+            worksheet.write(i+1,1,Name[i])          #写入品牌
+            worksheet.write(i+1,2,Biaoqian[i])      #写入标签
+    workbook.save(savepath)                         #保存数据表
+
+#---------------------------------------------------------------------------------------------------
+
+if __name__ == "__main__":   #执行任务4.1程序
+        main4_1()
+if __name__ == "__main__":   #执行任务4.2程序
+        main4_2()
+if __name__ == "__main__":   #执行任务4.3程序
+        main4_3()
+if __name__ == "__main__":   #执行任务5.1程序
+        main5_1()
+if __name__ == "__main__":   #执行任务5.2程序
+        main5_2()
+if __name__ == "__main__":   #执行任务5.3程序
+       main5_3()
+
+
+
+
+
+
